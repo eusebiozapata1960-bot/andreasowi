@@ -16,6 +16,8 @@ if uploaded_file is not None:
     
     st.write("Datos cargados correctamente:")
     st.dataframe(df.head())
+    df_consolidado = pd.concat(df.values(), ignore_index=True)
+    st.write(df_consolidado.columns)
     
     # 2. Botón de acción
     if st.button("Analizar datos con IA"):
