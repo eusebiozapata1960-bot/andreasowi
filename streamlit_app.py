@@ -21,7 +21,7 @@ uploaded_file = st.file_uploader("Sube el archivo de transacciones (CSV o Excel)
 
 if uploaded_file is not None:
     # Leer el archivo
-    df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file,sheet_name=Nome)
+    df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file, sheet_name=0)
     
     st.write("Datos cargados correctamente:")
     st.dataframe(df.head())
