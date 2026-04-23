@@ -25,7 +25,7 @@ if uploaded_file is not None:
             resultado = "Análisis completado: Se identificaron 3 oportunidades de ahorro fiscal."
             
         st.success(resultado)
-        st.download_button("Descargar Reporte Final", data="Reporte_Final.txt", file_name="reporte.txt")
+        st.download_button("Descargar Reporte Final", data=resultado, file_name="reporte.txt")
 
 else:
     st.info("Por favor, sube un archivo para comenzar.")
