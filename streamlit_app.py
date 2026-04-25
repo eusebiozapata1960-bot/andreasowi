@@ -1,56 +1,70 @@
 import streamlit as st
 import pandas as pd
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
+import plotly.express as px
 
-def crear_tabla_resumen(resumen_mensual):
-    data = [resumen_mensual.columns.tolist()] + resumen_mensual.values.tolist()
-    tabla = Table(data)
-    # Aquí puedes agregar estilos a la tabla después, si quieres
-    return tabla
-    
 # Configuración de la página
 st.set_page_config(page_title="Asistente Financiero MERY", layout="wide")
 
 st.title("📊 Asistente de Optimización Fiscal")
-st.subheader("Solución inmediata para operaciones en Alemania")
+st.markdown("---")
 
 # 1. Carga de archivos
-uploaded_file = st.file_uploader("Sube el archivo de transacciones (CSV o Excel)", type=["csv", "xlsx"])
+uploaded_file = st.file_uploader("Sube el archivo Excel de proyecciones", type=["xlsx"])
 
 if uploaded_file is not None:
-    # Leer el archivo
-    df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file, sheet_name=0)
-    
-    st.write("Datos cargados correctamente:")
-    st.dataframe(df.head())
-    df_consolidado = pd.concat(df.values(), ignore_index=True)
-    st.write(df_consolidado.columns)
-    df_consolidado['fecha'] = pd.to_datetime(df_consolidado['fecha'])
-    df_consolidado['mes'] = df_consolidado['fecha'].dt.month_name()
-    resumen_mensual = df_consolidado.groupby('mes')[['gastos', 'ingresos']].sum().reset_index()
-    
-    # 2. Botón de acción
-if st.button("Analizar datos con IA"):
-    with st.spinner('El agente está procesando la información...'):
+    try:
+        # Leer todas las hojas
+        archivo_excel = pd.read_excel(uploaded_file, sheet_name=None, header=2)
         
-        # Procesamos el resumen real
-        resumen_mensual = df_consolidado.groupby('mes')[['gastos', 'ingresos']].sum().reset_index()
+        lista_dataframes = []
+        meses_validos = ['Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
         
-        # Mostramos los resultados reales en pantalla
-        st.write("### Análisis de Ingresos y Gastos por Mes")
-        st.dataframe(resumen_mensual)
+        for nombre_hoja, df in archivo_excel.items():
+            # Filtramos solo las hojas de meses
+            if nombre_hoja in meses_validos:
+                df_clean = df[['ITEM', 'COP', 'USD']].copy()
+                df_clean = df_clean.dropna(subset=['ITEM'])
+                df_clean['Mes'] = nombre_hoja
+                lista_dataframes.append(df_clean)
         
-        # Opcional: Si quieres un gráfico automático
-        st.bar_chart(resumen_mensual.set_index('mes'))
-        st.line_chart(resumen_mensual.set_index('mes'))
-        import plotly.express as px
-        fig_pastel = px.pie(resumen_mensual, values='gastos', names='mes', title='Distribución de Gastos por Mes')
-        st.plotly_chart(fig_pastel)
+        df_consolidado = pd.concat(lista_dataframes, ignore_index=True)
+        
+        # Procesar resumen
+        resumen = df_consolidado.groupby('Mes')['COP'].sum().reset_index()
+        orden_meses = meses_validos
+        resumen['Mes'] = pd.Categorical(resumen['Mes'], categories=orden_meses, ordered=True)
+        resumen = resumen.sort_values('Mes')
+        
+        # --- SECCIÓN DE VISUALIZACIÓN ---
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.write("### 📋 Cuadro Detallado")
+            st.dataframe(resumen.style.format({'COP': '{:,.0f}'}), use_container_width=True)
+            
+            st.write("### 📝 Explicación del Reporte")
+            st.info("""
+            Este tablero muestra la **proyección de costos operativos** en COP para el año 2026.
+            - **Análisis:** Permite visualizar los meses con mayor carga financiera.
+            - **Gráficos:** Identifican tendencias de crecimiento y distribución porcentual.
+            """)
 
-        st.success(resultado)
-        st.download_button("Descargar Reporte Final", data=resultado, file_name="reporte.txt")
-
-else:
-    st.info("Por favor, sube un archivo para comenzar.")
+        with col2:
+            st.write("### 📉 Gráficos de Análisis")
+            
+            # Gráfico de Barras
+            fig_bar = px.bar(resumen, x='Mes', y='COP', title='Total Costos por Mes (Barras)', color='COP')
+            st.plotly_chart(fig_bar, use_container_width=True)
+            
+            # Gráfico de Líneas
+            fig_line = px.line(resumen, x='Mes', y='COP', title='Tendencia de Costos (Línea)', markers=True)
+            st.plotly_chart(fig_line, use_container_width=True)
+            
+            # Gráfico de Pastel
+            fig_pie = px.pie(resumen, values='COP', names='Mes', title='Distribución Porcentual Anual')
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+    except Exception as e:
+        st.error(f"Error al procesar el archivo: {e}")
+        st.write("Verifica que las pestañas del Excel tengan los nombres correctos.")
